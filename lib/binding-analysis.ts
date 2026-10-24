@@ -204,7 +204,7 @@ const unique = new Map<string, BindingDeclaration>();
 
 for (const binding of bindings) {
 const key =
-"${binding.start}:${binding.end}:${binding.form}";
+  `${binding.start}:${binding.end}:${binding.form}`;
 
 unique.set(key, binding);
 
