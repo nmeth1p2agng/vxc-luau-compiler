@@ -203,11 +203,12 @@ for (let j = i + 1; j < separator; j++) {
 const unique = new Map<string, BindingDeclaration>();
 
 for (const binding of bindings) {
-const key =
-  `${binding.start}:${binding.end}:${binding.form}`;
+  const key =
+    `${binding.start}:${binding.end}:${binding.form}`;
 
-unique.set(key, binding);
-
+  if (!unique.has(key)) {
+    unique.set(key, binding);
+  }
 }
 
 return {
