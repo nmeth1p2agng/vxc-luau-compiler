@@ -1,19 +1,18 @@
 /**
- * VXC Shield Stage 8.5.1: conservative reference resolution.
+ * VXC Shield Stage 8.5.2
+ * Conservative reference resolution with basic function scopes.
  *
- * Supports a limited subset of Luau:
- * - simple `local name = ...` declarations
- * - `local function name(...)` declarations
- * - `do ... end` lexical blocks
+ * Supports:
+ * - Simple local declarations
+ * - Local function declarations
+ * - Basic anonymous and named function parameters
+ * - do/end blocks
  *
  * This is not a complete Luau parser.
  * Do not use this module for automatic renaming.
  */
 
-import {
-  tokenizeLuau,
-  type LexToken
-} from "./identifier-analysis";
+import { tokenizeLuau, type LexToken } from "./identifier-analysis";
 
 export interface ResolvedDeclaration {
   id: string;
@@ -21,7 +20,7 @@ export interface ResolvedDeclaration {
   start: number;
   end: number;
   scopeId: string;
-  form: "local" | "local-function";
+  form: "local" | "local-function" | "function-parameter";
 }
 
 export interface ResolvedReference {
@@ -45,12 +44,39 @@ interface Scope {
   declarations: Map<string, ResolvedDeclaration>;
 }
 
-function isKeyword(token: LexToken | undefined, value: string): boolean {
+function isKeyword(
+  token: LexToken | undefined,
+  value: string
+): boolean {
   return token?.kind === "keyword" && token.value === value;
 }
 
-function isSymbol(token: LexToken | undefined, value: string): boolean {
+function isSymbol(
+  token: LexToken | undefined,
+  value: string
+): boolean {
   return token?.kind === "symbol" && token.value === value;
+}
+
+function findMatchingParen(
+  tokens: LexToken[],
+  openIndex: number
+): number {
+  let depth = 0;
+
+  for (let i = openIndex; i < tokens.length; i++) {
+    if (isSymbol(tokens[i], "(")) {
+      depth++;
+    } else if (isSymbol(tokens[i], ")")) {
+      depth--;
+
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
 }
 
 function resolveName(
@@ -72,20 +98,15 @@ function resolveName(
   return null;
 }
 
-/**
- * Resolves a deliberately small subset of Luau.
- *
- * Unsupported constructs may produce unresolved or incorrectly classified
- * results. This output is for diagnostics and tests only.
- */
 export function resolveIdentifierReferences(
   source: string
 ): ReferenceResolutionResult {
   const tokens = tokenizeLuau(source);
+
   const root: Scope = {
     id: "scope:0",
     parent: null,
-    declarations: new Map()
+    declarations: new Map(),
   };
 
   const scopes: Scope[] = [root];
@@ -96,24 +117,46 @@ export function resolveIdentifierReferences(
   let nextScopeId = 1;
   let currentScope = root;
 
-  // First pass: establish simple block scopes and declarations.
+  function createScope(parent: Scope): Scope {
+    const scope: Scope = {
+      id: `scope:${nextScopeId++}`,
+      parent,
+      declarations: new Map(),
+    };
+
+    scopes.push(scope);
+    return scope;
+  }
+
+  function addDeclaration(
+    tokenIndex: number,
+    form: ResolvedDeclaration["form"],
+    scope: Scope
+  ): void {
+    const token = tokens[tokenIndex];
+
+    if (!token || token.kind !== "identifier") {
+      return;
+    }
+
+    const declaration: ResolvedDeclaration = {
+      id: `${token.start}:${token.end}:${form}`,
+      name: token.value,
+      start: token.start,
+      end: token.end,
+      scopeId: scope.id,
+      form,
+    };
+
+    declarations.push(declaration);
+    declarationTokenIndexes.add(tokenIndex);
+    scope.declarations.set(token.value, declaration);
+  }
+
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
     scopeAtToken[i] = currentScope;
-
-    if (isKeyword(token, "do")) {
-      const child: Scope = {
-        id: `scope:${nextScopeId++}`,
-        parent: currentScope,
-        declarations: new Map()
-      };
-
-      scopes.push(child);
-      currentScope = child;
-      scopeAtToken[i] = currentScope;
-      continue;
-    }
 
     if (isKeyword(token, "end")) {
       if (currentScope.parent) {
@@ -124,44 +167,91 @@ export function resolveIdentifierReferences(
       continue;
     }
 
-    if (!isKeyword(token, "local")) {
+    if (isKeyword(token, "do")) {
+      currentScope = createScope(currentScope);
+      scopeAtToken[i] = currentScope;
       continue;
     }
 
-    const next = tokens[i + 1];
+    if (isKeyword(token, "function")) {
+      const openParenIndex = tokens.findIndex(
+        (candidate, index) =>
+          index > i && isSymbol(candidate, "(")
+      );
 
-    let nameToken: LexToken | undefined;
-    let form: ResolvedDeclaration["form"] = "local";
-    let nameIndex = i + 1;
+      if (openParenIndex !== -1) {
+        const closeParenIndex = findMatchingParen(
+          tokens,
+          openParenIndex
+        );
 
-    if (isKeyword(next, "function")) {
-      nameToken = tokens[i + 2];
-      nameIndex = i + 2;
-      form = "local-function";
-    } else if (next?.kind === "identifier") {
-      nameToken = next;
-    }
+        if (closeParenIndex !== -1) {
+          const functionScope = createScope(currentScope);
 
-    if (nameToken?.kind !== "identifier") {
+          for (
+            let parameterIndex = openParenIndex + 1;
+            parameterIndex < closeParenIndex;
+            parameterIndex++
+          ) {
+            const parameter = tokens[parameterIndex];
+
+            if (
+              parameter.kind === "identifier" &&
+              (
+                isSymbol(tokens[parameterIndex - 1], "(") ||
+                isSymbol(tokens[parameterIndex - 1], ",")
+              )
+            ) {
+              addDeclaration(
+                parameterIndex,
+                "function-parameter",
+                functionScope
+              );
+            }
+          }
+
+          // The function body is entered after its parameter list.
+          // The simplified token model does not parse every Luau function form.
+          for (
+            let bodyIndex = openParenIndex + 1;
+            bodyIndex <= closeParenIndex;
+            bodyIndex++
+          ) {
+            scopeAtToken[bodyIndex] = functionScope;
+          }
+        }
+      }
+
       continue;
     }
 
-    const declaration: ResolvedDeclaration = {
-      id: `${nameToken.start}:${nameToken.end}:${form}`,
-      name: nameToken.value,
-      start: nameToken.start,
-      end: nameToken.end,
-      scopeId: currentScope.id,
-      form
-    };
+    if (isKeyword(token, "local")) {
+      const next = tokens[i + 1];
 
-    currentScope.declarations.set(declaration.name, declaration);
-    declarations.push(declaration);
-    declarationTokenIndexes.add(nameIndex);
+      if (isKeyword(next, "function")) {
+        addDeclaration(i + 2, "local-function", currentScope);
+        continue;
+      }
+
+      if (next?.kind === "identifier") {
+        addDeclaration(i + 1, "local", currentScope);
+
+        let j = i + 2;
+
+        while (j < tokens.length && isSymbol(tokens[j], ",")) {
+          const candidate = tokens[j + 1];
+
+          if (candidate?.kind !== "identifier") {
+            break;
+          }
+
+          addDeclaration(j + 1, "local", currentScope);
+          j += 2;
+        }
+      }
+    }
   }
 
-  // Second pass: associate each identifier with the nearest visible
-  // declaration in the recorded scope chain.
   const references: ResolvedReference[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
@@ -184,18 +274,19 @@ export function resolveIdentifierReferences(
       end: token.end,
       declarationId: declaration?.id ?? null,
       scopeId: scope.id,
-      status: declaration ? "resolved" : "unresolved"
+      status: declaration ? "resolved" : "unresolved",
     });
   }
 
   return {
-    declarations,
-    references,
+    declarations: declarations.sort((a, b) => a.start - b.start),
+    references: references.sort((a, b) => a.start - b.start),
     warnings: [
-      "Prototype only: this resolver supports only simple local declarations and do blocks.",
-      "Function scopes, parameters, loops, repeat/until, and complex Luau syntax are not fully modeled.",
-      "Forward references and declaration timing are not fully modeled.",
-      "Do not use this result for automatic identifier renaming."
-    ]
+      "Prototype only: this resolver supports a limited subset of Luau.",
+      "Function-body scope tracking and declaration timing are incomplete.",
+      "Loop variables, repeat/until, method syntax, and complex type annotations are not fully modeled.",
+      "Forward references may be resolved incorrectly.",
+      "Do not use this result for automatic identifier renaming.",
+    ],
   };
 }
