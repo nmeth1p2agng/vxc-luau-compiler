@@ -2,14 +2,15 @@
   "name": "vxc-luau-compiler",
   "version": "1.0.0",
   "private": true,
-  "description": "Minimal Luau-to-custom-VM compiler",
+  "description": "Minimal Luau-to-custom-VM compiler written in TypeScript",
   "scripts": {
     "test": "tsx --test lib/pipeline.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-  "@types/node": "^22.0.0",
-  "@vercel/node": "^5.0.0",
-  "tsx": "^4.19.0",
-  "typescript": "^5.7.0"
+    "@types/node": "^22.0.0",
+    "@vercel/node": "^5.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
 }
