@@ -1,53 +1,54 @@
-import type {
-  VercelRequest,
-  VercelResponse,
-} from "@vercel/node";
-
-import { obfuscateLuau } from "../lib/obfuscator";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { protectLuau } from "../lib/protector";
 
 export default function handler(
   req: VercelRequest,
-  res: VercelResponse,
+  res: VercelResponse
 ) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
 
+  if (req.method !== "POST") {
     return res.status(405).json({
       success: false,
-      error: "Method not allowed. Use POST.",
-    });
-  }
-
-  const source = req.body?.source;
-
-  if (typeof source !== "string") {
-    return res.status(400).json({
-      success: false,
-      error: 'Expected JSON body: {"source":"return 2 + 3"}',
-    });
-  }
-
-  if (source.length === 0 || source.length > 10_000) {
-    return res.status(400).json({
-      success: false,
-      error: "Source must contain between 1 and 10000 characters.",
+      error: "Method not allowed. Use POST."
     });
   }
 
   try {
-    const bytecode = obfuscateLuau(source);
+    const body =
+      typeof req.body === "string"
+        ? JSON.parse(req.body)
+        : req.body;
+
+    const source = body?.source;
+
+    if (typeof source !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: 'Field "source" must be a string.'
+      });
+    }
+
+    const result = protectLuau(source);
 
     return res.status(200).json({
-      success: true,
-      format: "vxc-bytecode-v1",
-      bytecode,
+      success: result.success,
+      format: "vxc-luau-protector-v1",
+      output: result.output,
+      originalLength: result.originalLength,
+      outputLength: result.outputLength,
+      transformations: result.transformations,
+      warnings: result.warnings
     });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "An unexpected error occurred.";
+
     return res.status(400).json({
       success: false,
-      error: error instanceof Error
-        ? error.message
-        : "Compilation failed.",
+      error: message
     });
   }
 }
