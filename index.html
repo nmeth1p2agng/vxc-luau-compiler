@@ -1,186 +1,264 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#090b12">
-<title>VXC Luau Compiler</title>
+<title>VXC Luau Protector</title>
 <style>
-:root{color-scheme:dark;--bg:#090b12;--panel:#111521;--border:#292f43;--text:#edf0fa;--muted:#929bb3;--accent:#8b7cff;--green:#4adea1;--red:#ff737d}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#191a38,transparent 48%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-.container{width:min(100% - 24px,1000px);margin:auto;padding:30px 0 45px}
-header{margin-bottom:25px}
-.badge{display:inline-block;padding:6px 10px;border:1px solid #39325e;border-radius:999px;color:#c2baff;background:#19162b;font-size:12px;letter-spacing:1px}
-h1{margin:14px 0 8px;font-size:clamp(30px,7vw,46px);letter-spacing:-1.5px}
-h1 span{color:var(--accent)}
-.subtitle{color:var(--muted);line-height:1.7}
-.panel{margin-top:18px;padding:18px;border:1px solid var(--border);border-radius:16px;background:rgba(17,21,33,.95);box-shadow:0 16px 50px #0002}
-.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
-h2{margin:0;font-size:16px}
-.hint{color:var(--muted);font-size:12px}
-textarea{display:block;width:100%;min-height:190px;resize:vertical;padding:14px;border:1px solid var(--border);border-radius:10px;outline:none;background:#0a0d15;color:#dce2ff;font:13px/1.7 ui-monospace,Consolas,monospace;tab-size:2}
-textarea:focus{border-color:var(--accent)}
-#output{min-height:230px;color:#a8f3cf}
-.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
-button{min-height:42px;padding:10px 15px;border:1px solid var(--border);border-radius:9px;background:#1a2030;color:var(--text);font-weight:650;cursor:pointer}
-button:hover{filter:brightness(1.15)}
-button:disabled{opacity:.6;cursor:wait}
-.primary{border-color:transparent;background:linear-gradient(135deg,#8170ff,#6553db);color:white}
-.status{min-height:22px;margin-top:12px;color:var(--muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
-.success{color:var(--green)!important}
-.error{color:var(--red)!important}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.metric{padding:14px 11px;border:1px solid var(--border);border-radius:10px;background:#0d111b;min-width:0}
-.metric strong{display:block;margin-bottom:9px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-.metric span{display:block;font-size:clamp(16px,3vw,23px);font-weight:750;overflow-wrap:anywhere}
-.stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:15px}
-.stage{padding:12px 10px;border:1px solid var(--border);border-radius:10px;background:#0d111b;color:var(--muted);font-size:12px;line-height:1.5}
-.stage strong{display:block;margin-bottom:5px;color:var(--text);font-size:13px}
-.stage.active{border-color:var(--accent);background:#19172c}
-.stage.done{border-color:#245b49}
-.stage.done strong{color:var(--green)}
-.track{height:5px;margin-top:14px;overflow:hidden;border-radius:999px;background:#252a3a}
-.bar{width:0;height:100%;background:linear-gradient(90deg,#6553db,#a79cff);transition:width .25s}
-.log{min-height:55px;margin-top:12px;padding:12px;border-radius:9px;background:#0a0d15;color:var(--muted);font:12px/1.8 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
-footer{margin-top:24px;color:var(--muted);font-size:12px;line-height:1.8;text-align:center}
-@media(max-width:600px){.container{padding-top:20px}.panel{padding:13px}.grid,.stages{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-heading{align-items:flex-start;flex-direction:column}button{flex:1 1 auto}}
+:root {
+  color-scheme: dark;
+  --bg: #090b12;
+  --panel: #111521;
+  --border: #292f43;
+  --text: #edf0fa;
+  --muted: #929bb3;
+  --accent: #8b7cff;
+  --green: #4adea1;
+  --red: #ff737d;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #191a38, transparent 48%), var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.container { width: min(100% - 24px, 1000px); margin: auto; padding: 30px 0 45px; }
+header { margin-bottom: 25px; }
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid #39325e;
+  border-radius: 999px;
+  color: #c2baff;
+  background: #19162b;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+h1 { margin: 14px 0 8px; font-size: clamp(30px, 7vw, 46px); letter-spacing: -1.5px; }
+h1 span { color: var(--accent); }
+.subtitle { color: var(--muted); line-height: 1.7; }
+.panel {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(17,21,33,.95);
+  box-shadow: 0 16px 50px #0002;
+}
+.panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
+h2 { margin: 0; font-size: 16px; }
+.hint { color: var(--muted); font-size: 12px; }
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: none;
+  background: #0a0d15;
+  color: #dce2ff;
+  font: 13px/1.7 ui-monospace, Consolas, monospace;
+  tab-size: 2;
+}
+textarea:focus { border-color: var(--accent); }
+#output { color: #a8f3cf; }
+.actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+button {
+  min-height: 42px;
+  padding: 10px 15px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #1a2030;
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.15); }
+button:disabled { opacity: .6; cursor: wait; }
+.primary { border-color: transparent; background: linear-gradient(135deg, #8170ff, #6553db); color: white; }
+.status { min-height: 22px; margin-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.success { color: var(--green) !important; }
+.error { color: var(--red) !important; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.metric { padding: 14px 11px; border: 1px solid var(--border); border-radius: 10px; background: #0d111b; min-width: 0; }
+.metric strong { display: block; margin-bottom: 9px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.metric span { display: block; font-size: clamp(16px, 3vw, 23px); font-weight: 750; overflow-wrap: anywhere; }
+.log {
+  min-height: 55px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #0a0d15;
+  color: var(--muted);
+  font: 12px/1.8 ui-monospace, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+footer { margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.8; text-align: center; }
+@media(max-width:600px) {
+  .container { padding-top: 20px; }
+  .panel { padding: 13px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel-heading { align-items: flex-start; flex-direction: column; }
+  button { flex: 1 1 auto; }
+}
 </style>
 </head>
 <body>
 <main class="container">
 <header>
-<span class="badge">VXC · VERSION 1</span>
-<h1>Luau <span>Compiler</span></h1>
-<p class="subtitle">Compile supported Luau expressions into VXC custom bytecode. View compilation metrics and export JSON output.</p>
-</header><section class="panel">
-<div class="panel-heading">
-<h2>01 / Source Code</h2>
-<span class="hint">Maximum 10,000 characters</span>
-</div>
-<textarea id="source" spellcheck="false" autocapitalize="off">local x = 10
+  <span class="badge">VXC · PROTECTOR V1</span>
+  <h1>Luau <span>Protector</span></h1>
+  <p class="subtitle">
+    Process Luau source code, inspect output statistics, and export the result.
+  </p>
+</header>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>01 / Source Code</h2>
+    <span class="hint">Maximum 100,000 characters</span>
+  </div>
+
+  <textarea id="source" spellcheck="false" autocapitalize="off" placeholder="Paste your Luau source code here...">local x = 10
 local y = 20
 local result = x + y * 2
 return result</textarea>
-<div class="actions">
-<button class="primary" id="compileBtn">Compile &amp; Obfuscate</button>
-<button id="exampleBtn">Load Example</button>
-<button id="clearBtn">Clear</button>
-</div>
-<div id="status" class="status" role="status" aria-live="polite">Ready. Enter supported Luau code.</div>
-</section><section class="panel">
-<div class="panel-heading">
-<h2>02 / Bytecode Statistics</h2>
-<span class="hint">Metrics from API response</span>
-</div>
-<div class="grid">
-<div class="metric"><strong>Instructions</strong><span id="instructionCount">—</span></div>
-<div class="metric"><strong>Local Variables</strong><span id="localCount">—</span></div>
-<div class="metric"><strong>Output Size</strong><span id="outputSize">—</span></div>
-<div class="metric"><strong>Format</strong><span id="bytecodeFormat">—</span></div>
-</div>
-</section><section class="panel">
-<div class="panel-heading">
-<h2>03 / Pipeline</h2>
-<span class="hint" id="progressLabel">0% complete</span>
-</div>
-<div class="stages">
-<div class="stage" id="stage1"><strong>01. Input</strong>Waiting for source</div>
-<div class="stage" id="stage2"><strong>02. Parser</strong>Send to API</div>
-<div class="stage" id="stage3"><strong>03. Compiler</strong>Generate bytecode</div>
-<div class="stage" id="stage4"><strong>04. Output</strong>Ready to export</div>
-</div>
-<div class="track"><div id="progressBar" class="bar"></div></div>
-<div id="log" class="log">[VXC] Interface initialized.</div>
-</section><section class="panel">
-<div class="panel-heading">
-<h2>04 / Bytecode Output</h2>
-<span class="hint">JSON</span>
-</div>
-<textarea id="output" readonly spellcheck="false" placeholder="Compiled bytecode appears here..."></textarea>
-<div class="actions">
-<button id="copyBtn">Copy Output</button>
-<button id="downloadBtn">Download JSON</button>
-</div>
-<div id="outputStatus" class="status">No output generated yet.</div>
-</section><footer>VXC Luau Compiler · Custom bytecode prototype<br>This produces VXC bytecode JSON, not native Roblox Luau output.</footer>
-</main><script>
+
+  <div class="actions">
+    <button class="primary" id="protectBtn">Protect Source</button>
+    <button id="exampleBtn">Load Example</button>
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite">
+    Ready. Paste Luau source code to begin.
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>02 / Protection Statistics</h2>
+    <span class="hint">Based on API response</span>
+  </div>
+
+  <div class="grid">
+    <div class="metric">
+      <strong>Original Size</strong>
+      <span id="originalSize">—</span>
+    </div>
+    <div class="metric">
+      <strong>Output Size</strong>
+      <span id="outputSize">—</span>
+    </div>
+    <div class="metric">
+      <strong>Size Difference</strong>
+      <span id="sizeDifference">—</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>03 / Processing Log</h2>
+    <span class="hint" id="processingState">Idle</span>
+  </div>
+  <div id="log" class="log">[VXC] Protector interface initialized.</div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>04 / Protected Source</h2>
+    <span class="hint" id="outputFormat">Luau source</span>
+  </div>
+
+  <textarea id="output" readonly spellcheck="false" placeholder="Protected source will appear here..."></textarea>
+
+  <div class="actions">
+    <button id="copyBtn">Copy Output</button>
+    <button id="downloadBtn">Download .lua</button>
+  </div>
+
+  <div id="outputStatus" class="status">No output generated yet.</div>
+</section>
+
+<footer>
+  VXC Luau Protector · Version 1<br>
+  Basic source cleanup only; this version does not rename variables or provide strong obfuscation.
+</footer>
+</main>
+
+<script>
 const $ = id => document.getElementById(id);
+
 const sourceEl = $("source");
 const outputEl = $("output");
-const compileBtn = $("compileBtn");
+const protectBtn = $("protectBtn");
 const statusEl = $("status");
 const outputStatusEl = $("outputStatus");
-const progressBar = $("progressBar");
-const progressLabel = $("progressLabel");
 const logEl = $("log");
-const stageEls = [ $("stage1"), $("stage2"), $("stage3"), $("stage4") ];
+
+function setStatus(message, type = "") {
+  statusEl.textContent = message;
+  statusEl.className = "status " + type;
+}
+
+function setOutputStatus(message, type = "") {
+  outputStatusEl.textContent = message;
+  outputStatusEl.className = "status " + type;
+}
 
 function log(message) {
   logEl.textContent += "\n[" + new Date().toLocaleTimeString() + "] " + message;
   logEl.scrollTop = logEl.scrollHeight;
 }
-function status(message, type = "") {
-  statusEl.textContent = message;
-  statusEl.className = "status " + type;
-}
-function progress(value) {
-  progressBar.style.width = value + "%";
-  progressLabel.textContent = value + "% complete";
-}
-function stage(active, done = 0) {
-  stageEls.forEach((el, i) => {
-    el.classList.remove("active", "done");
-    if (i < done) el.classList.add("done");
-    else if (i === active) el.classList.add("active");
-  });
-}
+
 function resetStats() {
-  $("instructionCount").textContent = "—";
-  $("localCount").textContent = "—";
+  $("originalSize").textContent = "—";
   $("outputSize").textContent = "—";
-  $("bytecodeFormat").textContent = "—";
-}
-function resetPipeline() {
-  stageEls.forEach(el => el.classList.remove("active", "done"));
-  progress(0);
-}
-function showError(message) {
-  status(message, "error");
-  outputStatusEl.textContent = "Compilation failed.";
-  outputStatusEl.className = "status error";
-  log("ERROR: " + message);
+  $("sizeDifference").textContent = "—";
 }
 
-compileBtn.addEventListener("click", async () => {
-  const source = sourceEl.value;
-  if (!source.trim()) {
-    showError("Please enter source code first.");
-    return;
-  }
-  if (source.length > 10000) {
-    showError("Source exceeds the 10,000 character limit.");
-    return;
-  }
-
-  compileBtn.disabled = true;
-  compileBtn.textContent = "Processing...";
+function resetOutput() {
   outputEl.value = "";
   resetStats();
-  resetPipeline();
-  outputStatusEl.textContent = "Processing source...";
-  outputStatusEl.className = "status";
-  logEl.textContent = "[VXC] Starting pipeline.";
+  $("processingState").textContent = "Idle";
+  $("outputFormat").textContent = "Luau source";
+}
+
+function bytes(text) {
+  return new TextEncoder().encode(text).length;
+}
+
+protectBtn.addEventListener("click", async () => {
+  const source = sourceEl.value;
+
+  if (!source.trim()) {
+    setStatus("Please enter Luau source code first.", "error");
+    return;
+  }
+
+  if (source.length > 100000) {
+    setStatus("Source exceeds the 100,000 character limit.", "error");
+    return;
+  }
+
+  protectBtn.disabled = true;
+  protectBtn.textContent = "Processing...";
+  outputEl.value = "";
+  resetStats();
+  setOutputStatus("Processing source...");
+  $("processingState").textContent = "Running";
+  logEl.textContent = "[VXC] Starting protection request.";
 
   try {
-    stage(0);
-    progress(10);
-    status("Validating source...");
-    log("Source validated: " + source.length + " characters.");
-
-    stage(1, 1);
-    progress(30);
-    status("Sending source to /api/run...");
-    log("POST /api/run");
+    setStatus("Sending source to the Protector API...");
+    log("Source length: " + source.length + " characters.");
 
     const response = await fetch("/api/run", {
       method: "POST",
@@ -188,7 +266,8 @@ compileBtn.addEventListener("click", async () => {
       body: JSON.stringify({ source })
     });
 
-    log("API returned HTTP " + response.status + ".");
+    log("HTTP status: " + response.status);
+
     let data;
     try {
       data = await response.json();
@@ -197,102 +276,121 @@ compileBtn.addEventListener("click", async () => {
     }
 
     if (!response.ok || !data.success) {
-      throw new Error(data.error || "Compilation request failed.");
-    }
-    if (!data.bytecode || typeof data.bytecode !== "object") {
-      throw new Error("API response has no valid bytecode object.");
+      throw new Error(data.error || "Protection request failed.");
     }
 
-    stage(2, 2);
-    progress(70);
-    const bytecode = data.bytecode;
-    const instructions = Array.isArray(bytecode.instructions)
-      ? bytecode.instructions
-      : [];
+    if (typeof data.output !== "string") {
+      throw new Error("API response is missing the output source.");
+    }
 
-    const formatted = JSON.stringify(data, null, 2);
-    outputEl.value = formatted;
+    outputEl.value = data.output;
 
-    $("instructionCount").textContent = instructions.length.toLocaleString();
-    $("localCount").textContent = Number.isFinite(bytecode.localCount)
-      ? bytecode.localCount.toLocaleString()
-      : "N/A";
-    $("outputSize").textContent =
-      new TextEncoder().encode(formatted).length.toLocaleString() + " B";
-    $("bytecodeFormat").textContent = data.format || "Unknown";
+    const originalBytes = bytes(source);
+    const outputBytes = bytes(data.output);
+    const difference = originalBytes - outputBytes;
+    const percent = originalBytes === 0
+      ? 0
+      : (difference / originalBytes) * 100;
 
-    stage(3, 3);
-    progress(100);
-    status("Compilation completed successfully.", "success");
-    outputStatusEl.textContent = "Bytecode JSON generated successfully.";
-    outputStatusEl.className = "status success";
-    log("Instructions: " + instructions.length);
-    log("Local variables: " + (Number.isFinite(bytecode.localCount) ? bytecode.localCount : "N/A"));
-    log("Output size: " + new TextEncoder().encode(formatted).length + " bytes.");
-    log("Pipeline completed.");
+    $("originalSize").textContent = originalBytes.toLocaleString() + " B";
+    $("outputSize").textContent = outputBytes.toLocaleString() + " B";
+    $("sizeDifference").textContent =
+      (difference > 0 ? "−" : difference < 0 ? "+" : "") +
+      Math.abs(percent).toFixed(1) + "%";
+
+    $("processingState").textContent = "Complete";
+    $("outputFormat").textContent = data.format || "Luau source";
+
+    setStatus("Source processing completed.", "success");
+    setOutputStatus("Output generated. Test it in Roblox Studio before using it.", "success");
+
+    log("Format: " + (data.format || "unknown"));
+
+    if (Array.isArray(data.transformations)) {
+      data.transformations.forEach(item => log("Applied: " + item));
+    }
+
+    if (Array.isArray(data.warnings)) {
+      data.warnings.forEach(item => log("Warning: " + item));
+    }
+
+    log("Output size: " + outputBytes + " bytes.");
+    log("Request completed.");
   } catch (error) {
-    resetPipeline();
-    showError(error instanceof Error ? error.message : "Unexpected error.");
+    $("processingState").textContent = "Failed";
+    setStatus(error instanceof Error ? error.message : "Unexpected error.", "error");
+    setOutputStatus("No valid output was generated.", "error");
+    log("ERROR: " + (error instanceof Error ? error.message : "Unexpected error."));
   } finally {
-    compileBtn.disabled = false;
-    compileBtn.textContent = "Compile & Obfuscate";
+    protectBtn.disabled = false;
+    protectBtn.textContent = "Protect Source";
   }
 });
 
 $("exampleBtn").addEventListener("click", () => {
-  sourceEl.value = "local x = 10\nlocal y = 20\nlocal result = x + y * 2\nreturn result";
-  status("Example loaded. Press Compile & Obfuscate.");
+  sourceEl.value = [
+    "-- VXC example",
+    "local x = 10",
+    "local y = 20",
+    "local result = x + y * 2",
+    "return result"
+  ].join("\n");
+
+  setStatus("Example loaded. Press Protect Source.");
 });
 
 $("clearBtn").addEventListener("click", () => {
   sourceEl.value = "";
-  outputEl.value = "";
-  resetStats();
-  resetPipeline();
-  status("Source and output cleared.");
-  outputStatusEl.textContent = "No output generated yet.";
-  outputStatusEl.className = "status";
+  resetOutput();
+  setStatus("Source and output cleared.");
+  setOutputStatus("No output generated yet.");
   logEl.textContent = "[VXC] Cleared.";
 });
 
 $("copyBtn").addEventListener("click", async () => {
   if (!outputEl.value) {
-    outputStatusEl.textContent = "There is no output to copy.";
-    outputStatusEl.className = "status error";
+    setOutputStatus("There is no output to copy.", "error");
     return;
   }
+
   try {
     await navigator.clipboard.writeText(outputEl.value);
-    outputStatusEl.textContent = "Output copied to clipboard.";
-    outputStatusEl.className = "status success";
+    setOutputStatus("Output copied to clipboard.", "success");
   } catch {
     outputEl.focus();
     outputEl.select();
-    const ok = document.execCommand("copy");
-    outputStatusEl.textContent = ok ? "Output copied." : "Copy failed; select and copy manually.";
-    outputStatusEl.className = ok ? "status success" : "status error";
+    const success = document.execCommand("copy");
+    setOutputStatus(
+      success ? "Output copied." : "Copy failed; select and copy manually.",
+      success ? "success" : "error"
+    );
   }
 });
 
 $("downloadBtn").addEventListener("click", () => {
   if (!outputEl.value) {
-    outputStatusEl.textContent = "Compile source before downloading.";
-    outputStatusEl.className = "status error";
+    setOutputStatus("Protect source before downloading.", "error");
     return;
   }
-  const blob = new Blob([outputEl.value], { type: "application/json" });
+
+  const blob = new Blob([outputEl.value], {
+    type: "text/plain;charset=utf-8"
+  });
+
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "vxc-bytecode.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "vxc-protected.lua";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
   URL.revokeObjectURL(url);
-  outputStatusEl.textContent = "Download started: vxc-bytecode.json";
-  outputStatusEl.className = "status success";
+  setOutputStatus("Download started: vxc-protected.lua", "success");
 });
 
-log("Ready. API endpoint: /api/run");
-</script></body>
+log("API endpoint: /api/run");
+</script>
+</body>
 </html>
