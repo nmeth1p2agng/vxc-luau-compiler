@@ -4,7 +4,7 @@
   "private": true,
   "description": "Minimal Luau-to-custom-VM compiler written in TypeScript",
   "scripts": {
-    "test": "tsx --test lib/pipeline.test.ts",
+    "test": "tsx --test lib/*.test.ts lib/*-test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
