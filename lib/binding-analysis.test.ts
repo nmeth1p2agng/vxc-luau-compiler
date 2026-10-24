@@ -70,3 +70,44 @@ warning => warning.includes("not resolved")
 )
 );
 });
+test("preserves distinct bindings during deduplication", () => {
+  const result = analyzeBindings(
+    "function greet(name, count) " +
+    "for i = 1, 3 do print(i) end " +
+    "for key, value in pairs({}) do print(key, value) end " +
+    "end"
+  );
+
+  const positions = result.bindings.map(
+    item => `${item.start}:${item.end}:${item.form}`
+  );
+
+  assert.equal(
+    positions.length,
+    new Set(positions).size
+  );
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "name" &&
+        item.form === "function-parameter"
+    )
+  );
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "i" &&
+        item.form === "numeric-for"
+    )
+  );
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "key" &&
+        item.form === "generic-for"
+    )
+  );
+});
