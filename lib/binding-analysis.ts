@@ -1,21 +1,33 @@
 /**
- * VXC Shield Stage 8.1: conservative function-parameter
- * and loop-binding inventory with stable declaration IDs.
+ * VXC Shield Stage 8.4.1: unified conservative binding inventory.
  *
- * Prototype only. Do not use for automatic renaming.
+ * Analysis-only prototype.
+ * Does not resolve lexical scopes or identifier references.
+ * Do not use for automatic identifier renaming.
  */
 
-import { tokenizeLuau, type LexToken } from "./identifier-analysis";
+import {
+  tokenizeLuau,
+  type LexToken
+} from "./identifier-analysis";
+
+import {
+  analyzeLocalDeclarations
+} from "./scope-analysis";
+
+export type BindingForm =
+  | "local"
+  | "local-function"
+  | "function-parameter"
+  | "numeric-for"
+  | "generic-for";
 
 export interface BindingDeclaration {
   id: string;
   name: string;
   start: number;
   end: number;
-  form:
-    | "function-parameter"
-    | "numeric-for"
-    | "generic-for";
+  form: BindingForm;
   confidence: "low";
   note: string;
 }
@@ -48,12 +60,42 @@ function matchingClose(
   return -1;
 }
 
+function createBinding(
+  token: LexToken,
+  form: BindingForm
+): BindingDeclaration {
+  return {
+    id: `${token.start}:${token.end}:${form}`,
+    name: token.value,
+    start: token.start,
+    end: token.end,
+    form,
+    confidence: "low",
+    note:
+      "Declaration candidate only; lexical scope and reference resolution are not implemented."
+  };
+}
+
+function isIdentifier(
+  token: LexToken | undefined
+): token is LexToken {
+  return token?.kind === "identifier";
+}
+
+function addUnique(
+  bindings: BindingDeclaration[],
+  binding: BindingDeclaration
+): void {
+  if (!bindings.some(existing => existing.id === binding.id)) {
+    bindings.push(binding);
+  }
+}
+
 /**
- * Detects common function parameters and simple loop variables.
+ * Inventories obvious local declarations, function parameters,
+ * and simple loop variables.
  *
  * This is not a complete Luau parser.
- * Scope resolution, shadowing, and reference resolution
- * are not implemented.
  */
 export function analyzeBindings(
   source: string
@@ -62,13 +104,34 @@ export function analyzeBindings(
   const bindings: BindingDeclaration[] = [];
 
   const warnings = [
-    "Prototype only: binding scopes and shadowing are not resolved.",
-    "Function type annotations and complex Luau syntax may be missed.",
-    "Binding IDs identify declarations by source position and form only.",
+    "Prototype only: lexical scopes, shadowing, and references are not resolved.",
+    "Complex Luau syntax, type annotations, and multiline constructs may be missed.",
+    "Binding IDs identify declaration candidates by source position and form.",
     "Do not use this inventory for automatic identifier renaming."
   ];
 
-  // Detect ordinary and anonymous function parameter lists.
+  // Include local declarations recognized by scope-analysis.
+  const localResult = analyzeLocalDeclarations(source);
+
+  for (const declaration of localResult.declarations) {
+    const token = tokens.find(
+      item =>
+        item.start === declaration.declarationStart &&
+        item.end === declaration.declarationEnd &&
+        item.value === declaration.name
+    );
+
+    if (!token) {
+      continue;
+    }
+
+    addUnique(
+      bindings,
+      createBinding(token, declaration.form)
+    );
+  }
+
+  // Detect function parameter candidates.
   for (let i = 0; i < tokens.length; i++) {
     if (
       tokens[i].kind !== "keyword" ||
@@ -111,33 +174,22 @@ export function analyzeBindings(
     for (let j = openIndex + 1; j < closeIndex; j++) {
       const token = tokens[j];
 
-      // Variadic parameters do not have an ordinary identifier
-      // declaration in this inventory.
       if (token.value === "...") {
         expectName = false;
         continue;
       }
 
-      if (
-        expectName &&
-        token.kind === "identifier"
-      ) {
+      if (expectName && isIdentifier(token)) {
         const next = tokens[j + 1];
 
         if (
           next &&
           [",", ")", ":"].includes(next.value)
         ) {
-          bindings.push({
-            id: `${token.start}:${token.end}:function-parameter`,
-            name: token.value,
-            start: token.start,
-            end: token.end,
-            form: "function-parameter",
-            confidence: "low",
-            note:
-              "Parameter candidate; type syntax and scope are not fully resolved."
-          });
+          addUnique(
+            bindings,
+            createBinding(token, "function-parameter")
+          );
 
           expectName = false;
           continue;
@@ -150,7 +202,7 @@ export function analyzeBindings(
     }
   }
 
-  // Detect simple numeric and generic for-loop variables.
+  // Detect numeric and generic for-loop binding candidates.
   for (let i = 0; i < tokens.length; i++) {
     if (
       tokens[i].kind !== "keyword" ||
@@ -182,7 +234,7 @@ export function analyzeBindings(
       continue;
     }
 
-    const form =
+    const form: BindingForm =
       separatorToken.value === "="
         ? "numeric-for"
         : "generic-for";
@@ -190,40 +242,23 @@ export function analyzeBindings(
     for (let j = i + 1; j < separator; j++) {
       const token = tokens[j];
 
-      if (token.kind !== "identifier") {
+      if (!isIdentifier(token)) {
         continue;
       }
 
-      bindings.push({
-        id: `${token.start}:${token.end}:${form}`,
-        name: token.value,
-        start: token.start,
-        end: token.end,
-        form,
-        confidence: "low",
-        note:
-          "Loop binding candidate; scope and complex syntax are not fully resolved."
-      });
+      addUnique(bindings, createBinding(token, form));
 
+      // Numeric for-loops have one loop variable.
       if (form === "numeric-for") {
         break;
       }
     }
   }
 
-  // Remove duplicate detections using declaration IDs.
-  const unique = new Map<string, BindingDeclaration>();
-
-  for (const binding of bindings) {
-    if (!unique.has(binding.id)) {
-      unique.set(binding.id, binding);
-    }
-  }
+  bindings.sort((a, b) => a.start - b.start);
 
   return {
-    bindings: [...unique.values()].sort(
-      (a, b) => a.start - b.start
-    ),
+    bindings,
     warnings
   };
 }
