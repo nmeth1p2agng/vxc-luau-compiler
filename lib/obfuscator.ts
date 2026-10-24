@@ -1,6 +1,7 @@
-import type {
-  Instruction,
-  VxcBytecode,
+import {
+  compileLuau,
+  type Instruction,
+  type VxcBytecode,
 } from "./compiler";
 
 export type EncodedInstruction = {
@@ -60,4 +61,10 @@ export function obfuscateBytecode(
     localCount: program.localCount,
     instructions,
   };
+}
+
+export function obfuscateLuau(
+  source: string,
+): ObfuscatedBytecode {
+  return obfuscateBytecode(compileLuau(source));
 }
