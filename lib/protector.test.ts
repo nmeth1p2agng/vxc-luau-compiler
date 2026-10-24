@@ -35,3 +35,13 @@ test("rejects unclosed delimiters", () => {
 test("rejects empty source", () => {
   assert.throws(() => protectLuau("  \n "), /cannot be empty/);
 });
+
+test("does not merge minus operators into a comment", () => {
+  const result = protectLuau("local value = a - -b");
+  assert.match(result.output, /a - -b/);
+});
+
+test("preserves token separation around equals and comparison operators", () => {
+  const result = protectLuau("local x = a = = b");
+  assert.match(result.output, /a = = b/);
+});
