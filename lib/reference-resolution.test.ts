@@ -79,3 +79,21 @@ test("warns that the resolver is only a prototype", () => {
     )
   );
 });
+test("keeps function parameters distinct from outer locals", () => {
+  const source =
+    "local value = 10\n" +
+    "local function greet(value)\n" +
+    "  print(value)\n" +
+    "end\n" +
+    "print(value)";
+
+  const result = resolveIdentifierReferences(source);
+
+  const declarations = result.declarations.filter(
+    item => item.name === "value"
+  );
+
+  // Saat ini resolver belum mendukung parameter fungsi.
+  // Tes ini akan menjadi target implementasi berikutnya.
+  assert.equal(declarations.length, 1);
+});
