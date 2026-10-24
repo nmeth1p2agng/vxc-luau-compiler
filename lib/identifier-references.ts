@@ -1,15 +1,28 @@
 /**
- * VXC Shield Stage 5: conservative identifier occurrence inventory.
- * This is analysis-only. Do not use it to rename code automatically.
+ * VXC Shield Stage 8.2: conservative identifier reference inventory.
+ *
+ * Analysis-only. Scope resolution and shadowing are not implemented.
+ * Do not use this inventory for automatic identifier renaming.
  */
-import { tokenizeLuau, type LexToken } from "./identifier-analysis";
-import { analyzeLocalDeclarations } from "./scope-analysis";
+
+import {
+  tokenizeLuau,
+  type LexToken
+} from "./identifier-analysis";
+
+import {
+  analyzeLocalDeclarations
+} from "./scope-analysis";
+
+export type IdentifierOccurrenceRole =
+  | "local-declaration"
+  | "other-occurrence";
 
 export interface IdentifierOccurrence {
   name: string;
   start: number;
   end: number;
-  role: "local-declaration" | "other-occurrence";
+  role: IdentifierOccurrenceRole;
 }
 
 export interface IdentifierReferenceSummary {
@@ -28,20 +41,36 @@ export interface IdentifierReferenceAnalysis {
   warnings: string[];
 }
 
-export function analyzeIdentifierReferences(source: string): IdentifierReferenceAnalysis {
+const SUMMARY_NOTE =
+  "Occurrences are grouped by spelling only; lexical scope, shadowing, " +
+  "global resolution, parameters, and loop bindings are unresolved.";
+
+export function analyzeIdentifierReferences(
+  source: string
+): IdentifierReferenceAnalysis {
   const tokens: LexToken[] = tokenizeLuau(source);
-  const declarations = analyzeLocalDeclarations(source).declarations;
-  const declarationOffsets = new Set(declarations.map(item => item.declarationStart));
+
+  const declarations =
+    analyzeLocalDeclarations(source).declarations;
+
+  // declarationStart is the source offset of the declared identifier.
+  const declarationOffsets = new Set<number>(
+    declarations.map(item => item.declarationStart)
+  );
+
   const occurrences: IdentifierOccurrence[] = tokens
     .filter(token => token.kind === "identifier")
     .map(token => ({
       name: token.value,
       start: token.start,
       end: token.end,
-      role: declarationOffsets.has(token.start) ? "local-declaration" : "other-occurrence"
+      role: declarationOffsets.has(token.start)
+        ? "local-declaration"
+        : "other-occurrence"
     }));
 
   const byName = new Map<string, IdentifierOccurrence[]>();
+
   for (const occurrence of occurrences) {
     const bucket = byName.get(occurrence.name) ?? [];
     bucket.push(occurrence);
@@ -49,17 +78,28 @@ export function analyzeIdentifierReferences(source: string): IdentifierReference
   }
 
   const summaries: IdentifierReferenceSummary[] = [];
+
   for (const [name, bucket] of byName) {
-    const declarationsForName = bucket.filter(item => item.role === "local-declaration");
-    const others = bucket.filter(item => item.role === "other-occurrence");
+    const declarationOccurrences = bucket.filter(
+      occurrence => occurrence.role === "local-declaration"
+    );
+
+    const otherOccurrences = bucket.filter(
+      occurrence => occurrence.role === "other-occurrence"
+    );
+
     summaries.push({
       name,
-      declarationCount: declarationsForName.length,
-      otherOccurrenceCount: others.length,
-      declarationOffsets: declarationsForName.map(item => item.start),
-      otherOffsets: others.map(item => item.start),
+      declarationCount: declarationOccurrences.length,
+      otherOccurrenceCount: otherOccurrences.length,
+      declarationOffsets: declarationOccurrences.map(
+        occurrence => occurrence.start
+      ),
+      otherOffsets: otherOccurrences.map(
+        occurrence => occurrence.start
+      ),
       confidence: "low",
-      note: "Occurrences are grouped by spelling only; scope, shadowing, globals, and parameter bindings are unresolved."
+      note: SUMMARY_NOTE
     });
   }
 
@@ -68,8 +108,9 @@ export function analyzeIdentifierReferences(source: string): IdentifierReference
     summaries,
     warnings: [
       "Analysis-only: do not rename identifiers based on these counts.",
-      "Same-spelling identifiers in different scopes are grouped together.",
-      "Function parameters, loop variables, and Luau type syntax are not fully classified."
+      "Same-spelling identifiers are grouped together even across different scopes.",
+      "Shadowing and lexical scope resolution are not implemented.",
+      "Function parameters, loop variables, globals, and Luau type syntax are not fully classified."
     ]
   };
 }
