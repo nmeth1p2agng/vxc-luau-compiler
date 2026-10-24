@@ -111,3 +111,42 @@ test("preserves distinct bindings during deduplication", () => {
     )
   );
 });
+test("preserves bindings with distinct source positions", () => {
+  const source =
+    "function greet(name, count) " +
+    "for i = 1, 3 do print(i) end " +
+    "for key, value in pairs({}) do print(key, value) end " +
+    "end";
+
+  const result = analyzeBindings(source);
+
+  const keys = result.bindings.map(
+    item => `${item.start}:${item.end}:${item.form}`
+  );
+
+  assert.equal(keys.length, new Set(keys).size);
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "name" &&
+        item.form === "function-parameter"
+    )
+  );
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "i" &&
+        item.form === "numeric-for"
+    )
+  );
+
+  assert.ok(
+    result.bindings.some(
+      item =>
+        item.name === "key" &&
+        item.form === "generic-for"
+    )
+  );
+});
